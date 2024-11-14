@@ -35,4 +35,10 @@ internal static unsafe class FuncLib {
     public static void FUN_00a48740(i32 p1, i32 node_idx) {
         FhUtil.get_fptr<FUN_00a48740>(0x648740)(p1, node_idx);
     }
+
+    private static FhMethodHandle<FUN_00797420> _FUN_00797420 = new(null, "FFX.exe", null, offset: 0x397420);
+
+    public static nint FUN_00797420(nint script_data_ptr, i32 slot, i32* entry_point) {
+        return _FUN_00797420.orig_fptr(script_data_ptr, slot, entry_point);
+    }
 }

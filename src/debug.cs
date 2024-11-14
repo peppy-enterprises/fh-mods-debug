@@ -2,6 +2,8 @@
 using System.Runtime.InteropServices;
 using System.Text.Json.Serialization;
 using Fahrenheit.CoreLib;
+using Fahrenheit.Modules.Debug.Windows;
+using Fahrenheit.Modules.Debug.Windows.F3;
 
 namespace Fahrenheit.Modules.Debug;
 
@@ -10,9 +12,8 @@ public sealed record DebugModuleConfig : FhModuleConfig {
     public DebugModuleConfig(string configName, bool configEnabled)
                       : base(configName, configEnabled) {}
 
-    public override bool TrySpawnModule([NotNullWhen(true)] out FhModule? fm) {
-        fm = new DebugModule(this);
-        return fm.ModuleState == FhModuleState.InitSuccess;
+    public override FhModule SpawnModule() {
+        return new DebugModule(this);
     }
 }
 
@@ -23,19 +24,24 @@ public unsafe partial class DebugModule : FhModule {
         _moduleConfig = moduleConfig;
 
         init_hooks();
-
-        _moduleState  = FhModuleState.InitSuccess;
     }
 
-    public override bool FhModuleInit() {
+    public override bool init() {
         return hook();
     }
 
-    public override void render_game() {
+    public override void post_update() {
+        AtelDebugger.update();
+    }
+
+    public override void render_imgui() {
         SphereGridEditor.render();
+        F3Screen.render();
+        ChrDebugger.render();
+        AtelDebugger.render();
     }
 
     public override void handle_input() {
-        SphereGridEditor.handle_input();
+        //SphereGridEditor.handle_input();
     }
 }
