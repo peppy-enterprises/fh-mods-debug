@@ -1,29 +1,32 @@
 ﻿using System;
 using System.Collections.Generic;
 
-using Fahrenheit.CoreLib.FFX;
-using Fahrenheit.CoreLib.FFX.Atel;
+using Fahrenheit.Core.FFX;
+using Fahrenheit.Core.FFX.Atel;
+
 using static Fahrenheit.Modules.Debug.Windows.AtelDecomp.AtelDecompiler;
 
 namespace Fahrenheit.Modules.Debug.Windows.AtelDecomp;
 
 internal unsafe static partial class AtelAst {
-    static AtelWorkerController* ctrl => Globals.Atel.controllers + target.ctrl_id;
-    static AtelBasicWorker* work => ctrl->worker(target.work_id);
+    public static  i32                   ctrl_id;
+    public static  i32                   work_id;
+    private static AtelWorkerController* ctrl => Globals.Atel.controllers + ctrl_id;
+    private static AtelBasicWorker*      work => ctrl->worker(work_id);
 
     public static class Parser {
-        private static List<Stmt> func_statements = [];
-        private static Stack<Expr> stack = [];
-        private static Queue<AtelDOpCode> opcodes = [];
+        private static List<Stmt> _func_statements = [];
+        private static Stack<Expr> _stack = [];
+        private static Queue<AtelDOpCode> _opcodes = [];
 
         private static AtelDOpCode consume() {
-            return opcodes.Dequeue();
+            return _opcodes.Dequeue();
         }
 
         private static AtelDOpCode consume(AtelInst value) {
-            if (opcodes.IsEmpty()) throw new InvalidOperationException($"Expected {value}, but queue was empty");
-            if (opcodes.Peek().inst != value) throw new InvalidOperationException($"Expected {value}, got {consume().inst}");
-            return opcodes.Dequeue();
+            if (_opcodes.IsEmpty()) throw new InvalidOperationException($"Expected {value}, but queue was empty");
+            if (_opcodes.Peek().inst != value) throw new InvalidOperationException($"Expected {value}, got {consume().inst}");
+            return _opcodes.Dequeue();
         }
 
         private static i16 consume_operand() {
@@ -31,17 +34,17 @@ internal unsafe static partial class AtelAst {
         }
 
         public static Block parse(Queue<AtelDOpCode> opcodes) {
-            func_statements = [];
-            stack = [];
-            Parser.opcodes = opcodes;
+            _func_statements = [];
+            _stack = [];
+            _opcodes = opcodes;
             while (!opcodes.IsEmpty()) {
-                func_statements.Add(statement());
+                _func_statements.Add(statement());
             }
-            return new([.. func_statements]);
+            return new(0, _func_statements);
         }
 
         public static Expr expression() {
-            if (opcodes.IsEmpty()) {
+            if (_opcodes.IsEmpty()) {
                 return new ParseErrorExpr("Tried to parse expression from no opcodes");
             }
 
@@ -49,27 +52,28 @@ internal unsafe static partial class AtelAst {
 
             bool first_passthrough = true;
             while (true) {
-                Func<Expr> gen = opcodes.Peek().inst switch {
-                    AtelInst.PUSHII => () => new Literal(consume_operand()),
-                    AtelInst.PUSHI => () => new Literal(work->table_int[consume_operand()]),
-                    AtelInst.PUSHF => () => new Literal(work->table_float[consume_operand()]),
+                i32 offset = _opcodes.Peek().offset;
+                Func<Expr> gen = _opcodes.Peek().inst switch {
+                    AtelInst.PUSHII => () => new Literal(offset, consume_operand()),
+                    AtelInst.PUSHI => () => new Literal(offset, work->table_int[consume_operand()]),
+                    AtelInst.PUSHF => () => new Literal(offset, work->table_float[consume_operand()]),
 
-                    >= AtelInst.PUSHI0 and <= AtelInst.PUSHI3 => () => new IntRegister((i16)((u8)consume().inst - (u8)AtelInst.PUSHI0)),
-                    >= AtelInst.PUSHF0 and <= AtelInst.PUSHF9 => () => new FloatRegister((i16)((u8)consume().inst - (u8)AtelInst.PUSHF0)),
+                    >= AtelInst.PUSHI0 and <= AtelInst.PUSHI3 => () => new IntRegister(offset, (i16)((u8)consume().inst - (u8)AtelInst.PUSHI0)),
+                    >= AtelInst.PUSHF0 and <= AtelInst.PUSHF9 => () => new FloatRegister(offset, (i16)((u8)consume().inst - (u8)AtelInst.PUSHF0)),
 
-                    AtelInst.PUSHV => () => new Variable(consume_operand()),
-                    AtelInst.PUSHAR => () => new Variable(consume_operand(), stack.PopOrDefault(new ParseErrorExpr("Array index missing from stack"))),
-                    AtelInst.PUSHARP => () => new VariablePointer(consume_operand(), stack.PopOrDefault(new ParseErrorExpr("Array index missing from stack"))),
+                    AtelInst.PUSHV => () => new Variable(offset, consume_operand()),
+                    AtelInst.PUSHAR => () => new Variable(offset, consume_operand(), _stack.PopOrDefault(new ParseErrorExpr("Array index missing from stack"))),
+                    AtelInst.PUSHARP => () => new VariablePointer(offset, consume_operand(), _stack.PopOrDefault(new ParseErrorExpr("Array index missing from stack"))),
 
-                    AtelInst.PUSHX => () => { consume(); return new RegisterX(); },
-                    AtelInst.PUSHY => () => { consume(); return new RegisterY(); },
-                    AtelInst.PUSHA => () => { consume(); return new RegisterA(); },
+                    AtelInst.PUSHX => () => { consume(); return new RegisterX(offset); },
+                    AtelInst.PUSHY => () => { consume(); return new RegisterY(offset); },
+                    AtelInst.PUSHA => () => { consume(); return new RegisterA(offset); },
 
-                    AtelInst.REPUSH => () => { consume(); return stack.PeekOrDefault(new ParseErrorExpr("Repushed value missing from stack")); },
+                    AtelInst.REPUSH => () => { consume(); return _stack.PeekOrDefault(new ParseErrorExpr("Repushed value missing from stack")); },
 
                     AtelInst.UMINUS
                     or AtelInst.NOT
-                    or AtelInst.BNOT => () => new PrefixOp(consume().inst, stack.PopOrDefault(new ParseErrorExpr("Operand missing from stack"))),
+                    or AtelInst.BNOT => () => new PrefixOp(offset, consume().inst, _stack.PopOrDefault(new ParseErrorExpr("Operand missing from stack"))),
 
                     AtelInst.OR or AtelInst.EOR or AtelInst.AND
                     or AtelInst.LOR or AtelInst.LAND
@@ -81,9 +85,10 @@ internal unsafe static partial class AtelAst {
                     or AtelInst.ADD or AtelInst.SUB
                     or AtelInst.MUL or AtelInst.DIV
                     or AtelInst.MOD => () => new InfixOp(
-                            stack.PopOrDefault(new ParseErrorExpr("Operand missing from stack")),
+                            offset,
+                            _stack.PopOrDefault(new ParseErrorExpr("Operand missing from stack")),
                             consume().inst,
-                            stack.PopOrDefault(new ParseErrorExpr("Operand missing from stack"))
+                            _stack.PopOrDefault(new ParseErrorExpr("Operand missing from stack"))
                         ),
 
                     AtelInst.CALL => () => {
@@ -93,10 +98,10 @@ internal unsafe static partial class AtelAst {
 
                         Expr[] args = new Expr[args_count];
                         for (i32 i = args_count - 1; i >= 0; i--) {
-                            args[i] = stack.PopOrDefault(new ParseErrorExpr("Parameter missing from stack"));
+                            args[i] = _stack.PopOrDefault(new ParseErrorExpr("Parameter missing from stack"));
                         }
 
-                        return new FnCall(id, args);
+                        return new FnCall(offset, id, args);
                     },
 
                     AtelInst.REQ or AtelInst.REQSW or AtelInst.REQEW
@@ -106,17 +111,18 @@ internal unsafe static partial class AtelAst {
                     or AtelInst.TREQ or AtelInst.TREQSW or AtelInst.TREQEW
                     or AtelInst.BFREQ or AtelInst.BFREQSW or AtelInst.BFREQEW
                     or AtelInst.BTREQ or AtelInst.BTREQSW or AtelInst.BTREQEW => () => new Run(
+                            offset,
                             consume().inst,
-                            stack.PopOrDefault(new ParseErrorExpr("Entry point missing from stack")),
-                            stack.PopOrDefault(new ParseErrorExpr("Worker ID missing from stack")),
-                            stack.PopOrDefault(new ParseErrorExpr("Level missing from stack"))
+                            _stack.PopOrDefault(new ParseErrorExpr("Entry point missing from stack")),
+                            _stack.PopOrDefault(new ParseErrorExpr("Worker ID missing from stack")),
+                            _stack.PopOrDefault(new ParseErrorExpr("Level missing from stack"))
                         ),
 
                     // If it's anything else, we're done with the expression
                     _ => () => {
                         if (first_passthrough) throw new NotImplementedException($"Could not parse opcode {consume().inst}");
-                        return ret_expr = stack.Pop();
-                    }
+                        return ret_expr = _stack.Pop();
+                    },
                 };
 
                 Expr expr = gen();
@@ -124,79 +130,89 @@ internal unsafe static partial class AtelAst {
 
                 if (ret_expr != null) return ret_expr;
 
-                stack.Push(expr);
+                _stack.Push(expr);
             }
         }
 
         public static Stmt statement() {
-            if (opcodes.IsEmpty()) {
+            if (_opcodes.IsEmpty()) {
                 return new ParseErrorStmt("Tried to parse statement from no opcodes");
             }
 
+            int offset = _opcodes.Peek().offset;
             // Func to use a switch expression because of how much nicer the syntax is
-            Func<Stmt> gen = opcodes.Peek().inst switch {
+            Func<Stmt> gen = _opcodes.Peek().inst switch {
                 AtelInst.RET
                 or AtelInst.DRET
-                or AtelInst.RTS => () => { consume(); return new Return(stack.TryPop()); }, //WARN: This is not at all how it works, but I don't care to fix it atm
+                or AtelInst.RTS => () => { consume(); return new Return(offset, _stack.TryPop()); }, //WARN: This is not at all how it works, but I don't care to fix it atm
 
-                AtelInst.POPXNCJMP => () => branch(stack.PopOrDefault(new ParseErrorExpr("Branch condition missing from stack"))),
-                AtelInst.POPXCJMP => () => branch(stack.PopOrDefault(new ParseErrorExpr("Branch condition missing from stack"))),
-                AtelInst.POPY => () => match(stack.PopOrDefault(new ParseErrorExpr("Switch variable missing from stack"))),
-                AtelInst.JMP => () => new Goto(consume_operand()),
-                AtelInst.JSR => () => new GotoSubroutine(consume_operand()),
+                AtelInst.POPXNCJMP => () => branch(_stack.PopOrDefault(new ParseErrorExpr("Branch condition missing from stack"))),
+                AtelInst.POPXCJMP => () => branch(_stack.PopOrDefault(new ParseErrorExpr("Branch condition missing from stack"))),
+                AtelInst.POPY => () => match(_stack.PopOrDefault(new ParseErrorExpr("Switch variable missing from stack"))),
+                AtelInst.JMP => () => new Goto(offset, consume_operand()),
+                AtelInst.JSR => () => new GotoSubroutine(offset, consume_operand()),
 
                 AtelInst.POPX => () => {
                         consume();
                         return new Assignment(
-                            new RegisterX(),
-                            stack.PopOrDefault(new ParseErrorExpr("Assignment value missing from stack"))
+                            offset,
+                            new RegisterX(offset),
+                            _stack.PopOrDefault(new ParseErrorExpr("Assignment value missing from stack"))
                         );
                     },
                 AtelInst.POPA => () => {
                         consume();
                         return new Assignment(
-                            new RegisterA(),
-                            stack.PopOrDefault(new ParseErrorExpr("Assignment value missing from stack"))
+                            offset,
+                            new RegisterA(offset),
+                            _stack.PopOrDefault(new ParseErrorExpr("Assignment value missing from stack"))
                         );
                     },
 
                 // I'm not sure what the difference is exactly so I can't represent V vs VL and AR vs ARL correctly
                 AtelInst.POPV or AtelInst.POPVL => () => new Assignment(
-                        new Variable(consume_operand()),
-                        stack.PopOrDefault(new ParseErrorExpr("Assignment value missing from stack"))
+                        offset,
+                        new Variable(offset, consume_operand()),
+                        _stack.PopOrDefault(new ParseErrorExpr("Assignment value missing from stack"))
                     ),
-                AtelInst.POPAR or AtelInst.POPARL => () => new Assignment(
-                        new Variable(
-                            consume_operand(),
-                            stack.PopOrDefault(new ParseErrorExpr("Array index missing from stack"))
-                        ),
-                        stack.PopOrDefault(new ParseErrorExpr("Assignment value missing from stack"))
-                    ),
+                AtelInst.POPAR or AtelInst.POPARL => () => {
+                    Expr value = _stack.PopOrDefault(new ParseErrorExpr("Assignment value missing from stack"));
+                    Variable var = new Variable(
+                        offset,
+                        consume_operand(),
+                        _stack.PopOrDefault(new ParseErrorExpr("Array index missing from stack"))
+                    );
+                    return new Assignment(offset, var, value);
+                },
 
                 >= AtelInst.POPF0 and <= AtelInst.POPF9 => () => new Assignment(
-                        new FloatRegister((i16)((u8)consume().inst - (u8)AtelInst.POPF0)),
-                        stack.PopOrDefault(new ParseErrorExpr("Assignment value missing from stack"))
+                        offset,
+                        new FloatRegister(offset, (i16)((u8)consume().inst - (u8)AtelInst.POPF0)),
+                        _stack.PopOrDefault(new ParseErrorExpr("Assignment value missing from stack"))
                     ),
                 >= AtelInst.POPI0 and <= AtelInst.POPI3 => () => new Assignment(
-                        new IntRegister((i16)((u8)consume().inst - (u8)AtelInst.POPI0)),
-                        stack.PopOrDefault(new ParseErrorExpr("Assignment value missing from stack"))
+                        offset,
+                        new IntRegister(offset, (i16)((u8)consume().inst - (u8)AtelInst.POPI0)),
+                        _stack.PopOrDefault(new ParseErrorExpr("Assignment value missing from stack"))
                     ),
 
                 AtelInst.REQWAIT or AtelInst.PREQWAIT => () => {
                         consume();
                         return new Await(
-                            stack.PopOrDefault(new ParseErrorExpr("Entry point missing from stack")),
-                            stack.PopOrDefault(new ParseErrorExpr("Worker ID missing from stack"))
+                            offset,
+                            _stack.PopOrDefault(new ParseErrorExpr("Entry point missing from stack")),
+                            _stack.PopOrDefault(new ParseErrorExpr("Worker ID missing from stack"))
                         );
                     },
 
                 AtelInst.REQCHG => () => {
                         consume();
                         return new Change(
-                            stack.PopOrDefault(new ParseErrorExpr("Old entry point missing from stack")),
-                            stack.PopOrDefault(new ParseErrorExpr("Old worker ID missing from stack")),
-                            stack.PopOrDefault(new ParseErrorExpr("New entry point missing from stack")),
-                            stack.PopOrDefault(new ParseErrorExpr("New worker ID missing from stack"))
+                            offset,
+                            work_id,
+                            _stack.PopOrDefault(new ParseErrorExpr("Value missing from stack")),
+                            _stack.PopOrDefault(new ParseErrorExpr("Old entry point missing from stack")),
+                            _stack.PopOrDefault(new ParseErrorExpr("New entry point missing from stack"))
                         );
                     },
 
@@ -207,16 +223,16 @@ internal unsafe static partial class AtelAst {
 
                     Expr[] args = new Expr[args_count];
                     for (i32 i = args_count - 1; i >= 0; i--) {
-                        args[i] = stack.PopOrDefault(new ParseErrorExpr("Parameter missing from stack"));
+                        args[i] = _stack.PopOrDefault(new ParseErrorExpr("Parameter missing from stack"));
                     }
 
-                    return new DirectExpr(new FnCall(id, args));
+                    return new DirectExpr(offset, new FnCall(offset, id, args));
                 },
 
                 _ => () => {
                     // There must be some expression before the statement
                     Expr expr = expression();
-                    stack.Push(expr);
+                    _stack.Push(expr);
                     return statement();
                 },
             };
@@ -224,17 +240,22 @@ internal unsafe static partial class AtelAst {
             return gen();
         }
 
-        // I hate what I've done, yet there is not other way
         public static Branch branch(Expr cond) {
             List<Stmt> body = [];
             List<Stmt> else_body = [];
 
-            if (opcodes.Peek().inst != AtelInst.POPXNCJMP && opcodes.Peek().inst != AtelInst.POPXCJMP) {
+            if (_opcodes.Peek().inst != AtelInst.POPXNCJMP && _opcodes.Peek().inst != AtelInst.POPXCJMP) {
                 throw new NotImplementedException($"Tried to create a branch statement using {consume().inst}");
             }
 
-            if (opcodes.Peek().inst == AtelInst.POPXCJMP) {
-                return new(cond, new([ new Goto((i16)consume().operand!) ]), new([]));
+            if (_opcodes.Peek().inst == AtelInst.POPXCJMP) {
+                i32 offset = _opcodes.Peek().offset;
+                return new(
+                    offset,
+                    cond,
+                    new(offset, [ new Goto(offset, (i16)consume().operand!) ]),
+                    new(offset, [])
+                );
             }
 
             /* How do we parse popxncjmp?
@@ -247,57 +268,54 @@ internal unsafe static partial class AtelAst {
              * jOUT:
              */
 
-            i16 else_jmp_idx = (i16)consume(AtelInst.POPXNCJMP).operand!;
+            var popxncjmp = consume(AtelInst.POPXNCJMP);
+            i16 else_jmp_idx = (i16)popxncjmp.operand!;
             i32 else_jmp_offset = (i32)work->table_jump[else_jmp_idx];
 
-            while (opcodes.Peek().offset < else_jmp_offset
-                    && opcodes.Peek().inst != AtelInst.JMP
-                    && opcodes.Peek().inst != AtelInst.RET
-                    && opcodes.Peek().inst != AtelInst.DRET
-                    && opcodes.Peek().inst != AtelInst.RTS) {
+            while (_opcodes.Peek().offset < else_jmp_offset
+                    && _opcodes.Peek().inst != AtelInst.JMP
+                    && _opcodes.Peek().inst != AtelInst.RET
+                    && _opcodes.Peek().inst != AtelInst.DRET
+                    && _opcodes.Peek().inst != AtelInst.RTS) {
                 body.Add(statement());
             }
 
-            if (opcodes.Peek().offset < else_jmp_offset && opcodes.Peek().inst != AtelInst.JMP) {
+            if (_opcodes.Peek().offset < else_jmp_offset || _opcodes.Peek().inst == AtelInst.JMP) {
                 body.Add(statement());
             }
 
-            if (opcodes.Peek().inst == AtelInst.JMP) {
-                body.Add(statement());
-            }
-
-            // If the last instruction is a `jmp` that jumps to after the next opcode
-            if (body[^1] is Goto jmp && work->table_jump[jmp.jump_idx] > opcodes.Peek().offset) {
+            // If the last instruction is a `jmp` that jumps to after the start of the potential `else` block
+            if (body[^1] is Goto jmp && work->table_jump[jmp.jump_idx] >= else_jmp_offset) {
                 // There's an `else`! (hopefully) (we don't actually know) (there isn't a way to tell that works 100% of the time)
                 Goto out_jmp = jmp;
                 i32 out_jmp_offset = (i32)work->table_jump[out_jmp.jump_idx];
                 body.RemoveAt(body.Count - 1);
 
-                while (opcodes.Peek().offset < out_jmp_offset
-                        && opcodes.Peek().inst != AtelInst.JMP
-                        && opcodes.Peek().inst != AtelInst.RET
-                        && opcodes.Peek().inst != AtelInst.DRET
-                        && opcodes.Peek().inst != AtelInst.RTS) {
+                while (_opcodes.Peek().offset < out_jmp_offset
+                        && _opcodes.Peek().inst != AtelInst.JMP
+                        && _opcodes.Peek().inst != AtelInst.RET
+                        && _opcodes.Peek().inst != AtelInst.DRET
+                        && _opcodes.Peek().inst != AtelInst.RTS) {
                     else_body.Add(statement());
                 }
 
-                if (opcodes.Peek().offset < out_jmp_offset && opcodes.Peek().inst != AtelInst.JMP) {
+                if (_opcodes.Peek().offset < out_jmp_offset && _opcodes.Peek().inst != AtelInst.JMP) {
                     else_body.Add(statement());
                 }
 
                 if (body.IsEmpty()) {
-                    cond = new PrefixOp(AtelInst.NOT, cond);
+                    cond = new PrefixOp(cond.offset, AtelInst.NOT, cond);
                     body = else_body;
                     else_body = [];
                 }
             }
 
-            return new(cond, new([.. body]), new([.. else_body]));
+            return new(popxncjmp.offset, cond, new(popxncjmp.offset + 3, body), new(else_jmp_offset, else_body));
         }
 
         public static Switch match(Expr value) {
-            Dictionary<Expr, Stmt> cases = [];
-            Stmt? def = null;
+            Dictionary<Expr, Block> cases = [];
+            Block? def = null;
 
             /* How do we parse a switch?
              *
@@ -305,7 +323,7 @@ internal unsafe static partial class AtelAst {
              *   jmp jCONDS0
              * jCOND0:
              *   |case0 body|
-             *   jmp jOUT
+             *   (jmp jOUT OR ret OR dret OR rts)
              * jCOND1:
              *   |case1 body|
              *   jmp jOUT
@@ -324,76 +342,124 @@ internal unsafe static partial class AtelAst {
              * jOUT:
              */
 
-            consume(AtelInst.POPY);
+            i32 switch_offset = consume(AtelInst.POPY).offset;
 
             i16 conds_jmp_idx = (i16)consume(AtelInst.JMP).operand!;
             i32 conds_jmp_offset = (i32)work->table_jump[conds_jmp_idx];
 
             i16? out_jmp_idx = null;
 
-            List<Block> case_blocks = [];
-            while (opcodes.Peek().offset < conds_jmp_offset) {
-                List<Stmt> case_block = [];
-                while (opcodes.Peek().inst != AtelInst.JMP) {
-                    case_block.Add(statement());
+            // jmp idx -> block info
+            Dictionary<i16, (i32 offset, List<Stmt> block)> case_blocks = [];
 
-                    // Special case for the *one* optimization they added
-                    if (case_block[^1] is Branch branch) {
-                        if (branch.body.length > 0 && branch.body.body[^1] is Goto jmp) {
-                            break;
+            // This is purely for fallthroughs and I am livid about it
+            // jmp idx -> case block active
+            Dictionary<i16, bool> active_case_blocks = [];
+
+            while (_opcodes.Peek().offset < conds_jmp_offset) {
+                i32 case_block_offset = _opcodes.Peek().offset;
+
+                for (i16 case_jmp_idx = (i16)(conds_jmp_idx + 1); case_jmp_idx < work->script_header->jump_count; case_jmp_idx++) {
+                    if (case_block_offset == work->table_jump[case_jmp_idx]) {
+                        case_blocks.Add(case_jmp_idx, ((i32)work->table_jump[case_jmp_idx], [ ]));
+                        active_case_blocks[case_jmp_idx] = true;
+                    }
+                }
+
+                if (_opcodes.Peek().inst == AtelInst.JMP
+                 || _opcodes.Peek().inst == AtelInst.RET
+                 || _opcodes.Peek().inst == AtelInst.DRET
+                 || _opcodes.Peek().inst == AtelInst.RTS) {
+                    Stmt end_stmt;
+                    if (_opcodes.Peek().inst != AtelInst.JMP) {
+                        end_stmt = statement();
+                    } else {
+                        end_stmt = new Break(_opcodes.Peek().offset, consume_operand());
+                        out_jmp_idx = ((Break)end_stmt).jmp_idx;
+                    }
+
+                    foreach (var block in active_case_blocks) {
+                        if (!block.Value) continue;
+
+                        case_blocks[block.Key].block.Add(end_stmt);
+                        active_case_blocks[block.Key] = false;
+                    }
+
+                    continue;
+                }
+
+                Stmt stmt = statement();
+
+                foreach (var block in active_case_blocks) {
+                    if (block.Value) {
+                        case_blocks[block.Key].block.Add(stmt);
+
+                        // I hope this works
+                        // Update: I have no idea what this is doing
+                        if (case_blocks[block.Key].block[^1] is Branch branch) {
+                            if (branch.body.length > 0
+                             && branch.body.body[^1] is Goto
+                             && branch.else_body.length > 0
+                             && branch.else_body.body[^1] is Goto) {
+                                active_case_blocks[block.Key] = false;
+                            }
                         }
                     }
                 }
-                // We've reached our `jmp jOUT`
-                if (out_jmp_idx.HasValue) consume(AtelInst.JMP);
-                else out_jmp_idx = (i16)consume(AtelInst.JMP).operand!;
-
-                case_blocks.Add(new([.. case_block]));
             }
 
             i32 out_jmp_offset = (i32)work->table_jump[(i16)out_jmp_idx!];
 
-            // We've reached our `jCONDS:`
-            List<Expr> case_conds = [];
+            void sort_rY(Expr expr) {
+                // Make sure rY is on the left
+                if (expr is InfixOp { rhs: RegisterY rhs1 } op1) {
+                    op1.rhs = op1.lhs;
+                    op1.lhs = new RegisterY(rhs1.offset);
+                }
 
+                // Also make sure > before <, >= before <=, etc.
+                if (expr is InfixOp { lhs: InfixOp lhs2, rhs: InfixOp rhs2 } op2) {
+                    if (rhs2.op.ToString().StartsWith("GT") && lhs2.op.ToString().StartsWith("LS")) {
+                        Expr tmp = rhs2;
+                        op2.rhs = op2.lhs;
+                        op2.lhs = tmp;
+                    }
+                }
+            }
+
+            // We've reached our `jCONDS:`
             // I just hope this works lol
             // I'll explain when asked (maybe) (no promises)
-            int i = -1;
-            while (opcodes.Peek().offset < out_jmp_offset) {
-                if (opcodes.Peek().inst == AtelInst.JMP) {
+            while (_opcodes.Peek().offset < out_jmp_offset) {
+                if (_opcodes.Peek().inst == AtelInst.JMP) {
                     // Default case
-                    def = case_blocks[i];
-                    consume(AtelInst.JMP);
+                    var default_block_info = case_blocks[consume_operand()];
+                    def = new(default_block_info.offset, default_block_info.block);
                     continue;
                 }
 
                 Expr case_cond = expression();
-                while (opcodes.Peek().inst == AtelInst.POPXNCJMP) {
+                sort_rY(case_cond);
+
+                while (_opcodes.Peek().inst == AtelInst.POPXNCJMP) {
                     consume(AtelInst.POPXNCJMP); // && next cond
 
-                    // Make sure rY is on the left
-                    if (case_cond is InfixOp _op1 && _op1.rhs is RegisterY) {
-                        _op1.rhs = _op1.lhs;
-                        _op1.lhs = new RegisterY();
-                    }
+                    Expr next_case_cond = expression();
+                    sort_rY(next_case_cond);
 
-                    case_cond = new InfixOp(case_cond, AtelInst.LAND, expression());
-
-                    // Also make sure > before <, >= before <=, etc.
-                    if (case_cond is InfixOp _op2 && _op2.lhs is InfixOp _lhs && _op2.rhs is InfixOp _rhs) {
-                        if (_rhs.op.ToString().StartsWith("GT") && _lhs.op.ToString().StartsWith("LS")) {
-                            Expr tmp = _rhs;
-                            _op2.rhs = _op2.lhs;
-                            _op2.lhs = _rhs;
-                        }
-                    }
+                    case_cond = new InfixOp(case_cond.offset, case_cond, AtelInst.LAND, next_case_cond);
+                    sort_rY(case_cond);
                 }
-                consume(AtelInst.POPXCJMP); // jump to case block
 
-                cases[case_cond] = case_blocks[++i];
+                var block_info = case_blocks[consume_operand()]; // consumes jump (`popxncjmp`) to case block
+                cases[case_cond] = new(block_info.offset, block_info.block);
             }
 
-            return new(value, cases, def);
+            foreach (var case_block in cases.Values)  {
+
+            }
+
+            return new(switch_offset, value, cases, def);
         }
     }
 }

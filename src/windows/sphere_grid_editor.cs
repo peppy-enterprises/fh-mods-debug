@@ -2,14 +2,13 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
-using System.Reflection;
-using System.Runtime.InteropServices;
-using System.Xml.Linq;
-using Fahrenheit.CoreLib;
-using Fahrenheit.CoreLib.FFX;
+
+using Fahrenheit.Core;
+using Fahrenheit.Core.FFX;
+
 using ImGuiNET;
+
 using static Fahrenheit.Modules.Debug.FuncLib;
-using static Fahrenheit.Modules.Debug.Windows.SphereGridEditor;
 
 namespace Fahrenheit.Modules.Debug.Windows;
 
@@ -145,7 +144,7 @@ public static unsafe class SphereGridEditor {
         Null = 0xFF,
     }
 
-    public static System.Collections.Generic.LinkedList<NodeType> NODE_TYPE_ORDER = new(
+    public static LinkedList<NodeType> NODE_TYPE_ORDER = new(
         new NodeType[] {
             NodeType.EmptyNode,
             NodeType.Lock_1, NodeType.Lock_2, NodeType.Lock_3, NodeType.Lock_4,
@@ -294,7 +293,7 @@ public static unsafe class SphereGridEditor {
         i32 cur_idx = lpamng->selected_node_idx;
 
         NodeType cur_node = (NodeType)lpamng->nodes[cur_idx].node_type;
-        System.Collections.Generic.LinkedListNode<NodeType> next_node = NODE_TYPE_ORDER.Find(cur_node).Next;
+        LinkedListNode<NodeType> next_node = NODE_TYPE_ORDER.Find(cur_node).Next;
         next_node ??= NODE_TYPE_ORDER.First!;
 
         new_node_type = next_node.Value;
@@ -307,7 +306,7 @@ public static unsafe class SphereGridEditor {
         i32 cur_idx = lpamng->selected_node_idx;
 
         NodeType cur_node = (NodeType)lpamng->nodes[cur_idx].node_type;
-        System.Collections.Generic.LinkedListNode<NodeType> next_node = NODE_TYPE_ORDER.Find(cur_node).Previous;
+        LinkedListNode<NodeType> next_node = NODE_TYPE_ORDER.Find(cur_node).Previous;
         next_node ??= NODE_TYPE_ORDER.Last!;
 
         new_node_type = next_node.Value;

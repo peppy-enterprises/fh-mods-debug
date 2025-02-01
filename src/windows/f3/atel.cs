@@ -1,7 +1,9 @@
-﻿using Fahrenheit.CoreLib.FFX;
-using ImGuiNET;
-using System.Numerics;
+﻿using System.Numerics;
 using System.Runtime.InteropServices;
+
+using Fahrenheit.Core.FFX;
+
+using ImGuiNET;
 
 namespace Fahrenheit.Modules.Debug.Windows.F3;
 

@@ -1,4 +1,6 @@
-﻿using Fahrenheit.CoreLib.FFX.Atel;
+﻿using System;
+
+using Fahrenheit.Core.FFX.Atel;
 
 namespace Fahrenheit.Modules.Debug.Windows.AtelDecomp;
 
@@ -42,7 +44,7 @@ internal static class AtelInstExt {
                 AtelInst.UMINUS => "-",
                 AtelInst.BNOT => "~",
 
-                _ => throw new System.NotImplementedException(""),
+                _ => throw new NotImplementedException(""),
             };
         }
 
@@ -85,7 +87,7 @@ internal static class AtelInstExt {
                 AtelInst.UMINUS => 20,
                 AtelInst.BNOT => 20,
 
-                _ => throw new System.NotImplementedException(""),
+                _ => throw new NotImplementedException(""),
             };
         }
     }

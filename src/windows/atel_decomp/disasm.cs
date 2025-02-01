@@ -1,7 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 
-using Fahrenheit.CoreLib.FFX.Atel;
+using Fahrenheit.Core.FFX.Atel;
+
 using static Fahrenheit.Modules.Debug.Windows.AtelDecomp.AtelDecompiler;
 
 namespace Fahrenheit.Modules.Debug.Windows.AtelDecomp;

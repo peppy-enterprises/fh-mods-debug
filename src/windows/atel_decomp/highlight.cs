@@ -1,5 +1,6 @@
-﻿using Fahrenheit.CoreLib.FFX.Atel;
-using System.Numerics;
+﻿using System.Numerics;
+
+using Fahrenheit.Core.FFX.Atel;
 
 public static class AtelHighlight {
     public enum InstType {

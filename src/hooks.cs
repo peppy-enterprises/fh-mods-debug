@@ -1,16 +1,19 @@
-﻿using Fahrenheit.CoreLib;
+﻿using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System;
-using static Fahrenheit.CoreLib.FhHookDelegates;
-using static Fahrenheit.Modules.Debug.Delegates;
-using Fahrenheit.Modules.Debug.Windows.F3;
+
+using Fahrenheit.Core;
 using Fahrenheit.Modules.Debug.Windows;
-using Fahrenheit.CoreLib.FFX;
+using Fahrenheit.Modules.Debug.Windows.AtelDecomp;
+
+using static Fahrenheit.Core.FhHookDelegates;
+using static Fahrenheit.Modules.Debug.Delegates;
+using static Fahrenheit.Modules.Debug.FuncLib;
 
 namespace Fahrenheit.Modules.Debug;
 
 public unsafe partial class DebugModule {
+#pragma warning disable CS8618 // Non-nullable field uninitialized
     private static FhMethodHandle<FUN_00a594c0> _FUN_00a594c0;
     private static FhMethodHandle<FUN_00a5a640> _FUN_00a5a640;
 
@@ -23,6 +26,7 @@ public unsafe partial class DebugModule {
     private static FhMethodHandle<PrintfVarargDelegate> _printf_473C20;
 
     private static FhMethodHandle<FUN_00642f50> _mirror_world;
+#pragma warning restore CS8618 // Non-nullable field uninitialized
 
     public void init_hooks() {
         const string game = "FFX.exe";
@@ -45,6 +49,7 @@ public unsafe partial class DebugModule {
     }
 
     public bool hook() {
+        return true;
         return _FUN_00a594c0.hook()
             && _FUN_00a5a640.hook()
             && _FUN_0086e990.hook()
@@ -81,6 +86,14 @@ public unsafe partial class DebugModule {
 
     private static void clear_recent_atel_signals(u32 event_id) {
         AtelDebugger.clear_recent_signals();
+        AtelDecompiler.target = new AtelDecompiler.AtelDecompTarget() {
+            ctrl_id = 0,
+            work_id = 0,
+            selected_func = 0,
+        };
+        AtelDecompiler.update_funcs();
+        AtelDebugger.event_id = event_id;
+        AtelDebugger.event_name = Marshal.PtrToStringAnsi((isize)get_event_name(event_id))!;
 
         _atel_event_setup.orig_fptr(event_id);
     }

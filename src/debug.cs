@@ -1,16 +1,14 @@
-﻿using System.Diagnostics.CodeAnalysis;
-using System.Runtime.InteropServices;
-using System.Text.Json.Serialization;
-using Fahrenheit.CoreLib;
+﻿using System.Text.Json.Serialization;
+
+using Fahrenheit.Core;
 using Fahrenheit.Modules.Debug.Windows;
-using Fahrenheit.Modules.Debug.Windows.F3;
 
 namespace Fahrenheit.Modules.Debug;
 
 public sealed record DebugModuleConfig : FhModuleConfig {
     [JsonConstructor]
     public DebugModuleConfig(string configName, bool configEnabled)
-                      : base(configName, configEnabled) {}
+        : base(configName, configEnabled, []) { }
 
     public override FhModule SpawnModule() {
         return new DebugModule(this);
@@ -31,14 +29,14 @@ public unsafe partial class DebugModule : FhModule {
     }
 
     public override void post_update() {
-        AtelDebugger.update();
+        //AtelDebugger.update();
     }
 
     public override void render_imgui() {
-        SphereGridEditor.render();
-        F3Screen.render();
-        ChrDebugger.render();
-        AtelDebugger.render();
+        //SphereGridEditor.render();
+        //F3Screen.render();
+        BattleDebugger.render();
+        //AtelDebugger.render();
     }
 
     public override void handle_input() {

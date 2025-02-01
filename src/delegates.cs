@@ -2,7 +2,7 @@
 
 namespace Fahrenheit.Modules.Debug;
 
-internal static unsafe class Delegates {
+internal unsafe static class Delegates {
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate void TOMkpCrossExtMesFontLClutTypeRGBA(
             u32 p1,
@@ -31,6 +31,9 @@ internal static unsafe class Delegates {
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate void AtelEventSetUp(u32 event_id);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate char* AtelGetEventName(u32 event_id);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate nint FUN_00797420(nint script_data_ptr, i32 slot, i32* entry_point);

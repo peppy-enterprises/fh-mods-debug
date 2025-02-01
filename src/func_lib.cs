@@ -1,9 +1,11 @@
-﻿using Fahrenheit.CoreLib;
+﻿using Fahrenheit.Core;
+
 using static Fahrenheit.Modules.Debug.Delegates;
+// ReSharper disable InconsistentNaming
 
 namespace Fahrenheit.Modules.Debug;
 
-internal static unsafe class FuncLib {
+internal unsafe static class FuncLib {
     public static void TOMkpCrossExtMesFontLClutTypeRGBA(
             u32 p1,
             u8[] text,
@@ -13,8 +15,8 @@ internal static unsafe class FuncLib {
             u8 tint_r, u8 tint_g, u8 tint_b, u8 tint_a,
             f32 scale,
             f32 _) {
-        fixed (u8 *_text = text)
-        FhUtil.get_fptr<TOMkpCrossExtMesFontLClutTypeRGBA>(0x501700)(p1, _text, x, y, color, p6, tint_r, tint_g, tint_b, tint_a, scale, _);
+        fixed (u8 *text_ = text)
+            FhUtil.get_fptr<TOMkpCrossExtMesFontLClutTypeRGBA>(0x501700)(p1, text_, x, y, color, p6, tint_r, tint_g, tint_b, tint_a, scale, _);
     }
 
     public static void TOMkpCrossExtMesFontLClut(
@@ -41,4 +43,7 @@ internal static unsafe class FuncLib {
     public static nint FUN_00797420(nint script_data_ptr, i32 slot, i32* entry_point) {
         return _FUN_00797420.orig_fptr(script_data_ptr, slot, entry_point);
     }
+
+    public static char* get_event_name(u32 event_id)
+        => FhUtil.get_fptr<AtelGetEventName>(0x4796e0)(event_id);
 }
