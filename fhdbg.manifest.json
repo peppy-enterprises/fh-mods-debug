@@ -1,0 +1,9 @@
+{
+    "Name":"Fahrenheit Debug Mod",
+    "Desc":"Provides a set of custom-built debugging tools for the game to ease development and testing of mods.",
+    "Authors":"The Fahrenheit contributors",
+    "Link":"https://github.com/peppy-enterprises/fh-mods-debug",
+    "DllList":["fhdbg"],
+    "Dependencies":[],
+    "LoadAfter":[]
+}
