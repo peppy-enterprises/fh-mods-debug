@@ -28,9 +28,6 @@
 
     <!-- MANIFEST & CONFIG REFS -->
     <ItemGroup>
-        <Content Include="fhdbg.config.json">
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </Content>
         <Content Include="fhdbg.manifest.json">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
