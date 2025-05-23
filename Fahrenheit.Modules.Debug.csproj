@@ -40,7 +40,7 @@
 
     <!-- PROJECT REFERENCES -->
     <ItemGroup>
-        <ProjectReference Include="..\core\Fahrenheit.Core.csproj">
+        <ProjectReference Include="..\..\base\core\Fahrenheit.Core.csproj">
             <Private>false</Private>
             <ExcludeAssets>runtime</ExcludeAssets>
         </ProjectReference>
