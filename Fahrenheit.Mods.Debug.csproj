@@ -6,7 +6,7 @@
         <ImplicitUsings>disable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-        <PlatformTarget>x86</PlatformTarget>
+        <RuntimeIdentifier>win-x86</RuntimeIdentifier>
         <EnableDynamicLoading>true</EnableDynamicLoading>
     </PropertyGroup>
 
@@ -17,14 +17,14 @@
         <Product>Fahrenheit Debug Mod for Final Fantasy X/X-2</Product>
     </PropertyGroup>
 
-    <!-- LOCAL DEPLOYMENT TARGET -->
-    <PropertyGroup>
-        <CopyToDir>$(SolutionDir)artifacts\localdeploy\mods\$(AssemblyName)</CopyToDir>
-    </PropertyGroup>
-
     <!-- SDK REFERENCES -->
     <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
     <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+
+    <!-- SHARED FILE LINKS -->
+    <ItemGroup>
+        <None Include="$(SolutionDir).editorconfig" Link=".editorconfig" />
+    </ItemGroup>
 
     <!-- MANIFEST & CONFIG REFS -->
     <ItemGroup>
@@ -33,16 +33,12 @@
         </Content>
     </ItemGroup>
 
-    <!-- SHARED FILE LINKS -->
-    <ItemGroup>
-        <None Include="$(SolutionDir).editorconfig" Link=".editorconfig" />
-    </ItemGroup>
-
     <!-- PROJECT REFERENCES -->
     <ItemGroup>
         <ProjectReference Include="..\..\base\core\Fahrenheit.Core.csproj">
             <Private>false</Private>
-            <ExcludeAssets>runtime</ExcludeAssets>
+            <!-- Hack due to NuGet's complete inability to properly handle transitive native deps -->
+            <IncludeAssets>compile</IncludeAssets>
         </ProjectReference>
     </ItemGroup>
 
