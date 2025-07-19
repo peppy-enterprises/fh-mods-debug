@@ -1,6 +1,4 @@
-﻿using System.Runtime.InteropServices;
-
-namespace Fahrenheit.Mods.Debug;
+﻿namespace Fahrenheit.Mods.Debug;
 
 /* [fkelava 17/7/25 02:33]
  * For vararg functions the delegate signature should have an argument count >=
@@ -23,6 +21,12 @@ internal delegate void PhyrePrintfDelegate(int rc, string fmt,
     nint va8,  nint va9,  nint va10, nint va11,
     nint va12, nint va13, nint va14, nint va15);
 
+/// <summary>
+///     Restores the bodies of stubbed-out debug print calls within the game. The output
+///     is logged to the Stage0 console and to disk.
+///     <para/>
+///     Do not interface with this module directly. It is self-contained.
+/// </summary>
 [FhLoad(FhGameType.FFX)]
 public unsafe class FhDebugPrintModule : FhModule {
 
@@ -49,6 +53,8 @@ public unsafe class FhDebugPrintModule : FhModule {
 
     [UnmanagedCallConv(CallConvs = new Type[] { typeof(System.Runtime.CompilerServices.CallConvCdecl) })]
     private void h_pprintf(int rc, string fmt, nint va0, nint va1, nint va2, nint va3, nint va4, nint va5, nint va6, nint va7, nint va8, nint va9, nint va10, nint va11, nint va12, nint va13, nint va14, nint va15) {
+        if (fmt.StartsWith("[FFX_section", StringComparison.InvariantCulture)) return; // EFL logs supersede Phyre load prints
+
         fmt      = fmt.Trim();
         nint buf = Marshal.AllocHGlobal(_buf_sz);
 
