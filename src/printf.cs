@@ -43,12 +43,12 @@ public unsafe class FhDebugPrintModule : FhModule {
     private readonly FhMethodHandle<PrintfVarargDelegate> _h_AtelPs2DebugString2;
 
     public FhDebugPrintModule() {
-        _h_PhyrePrintf         = new FhMethodHandle<PhyrePrintfDelegate> (this, "FFX.exe", h_pprintf, 0x0353F0);
-        _h_rcPrint             = new FhMethodHandle<PrintfVarargDelegate>(this, "FFX.exe", h_printf,  0x527550);
-        _h_dbgPrintf           = new FhMethodHandle<PrintfVarargDelegate>(this, "FFX.exe", h_printf,  0x22F6B0);
-        _h_scePrintf           = new FhMethodHandle<PrintfVarargDelegate>(this, "FFX.exe", h_printf,  0x22FDA0);
-        _h_AtelPs2DebugString  = new FhMethodHandle<PrintfVarargDelegate>(this, "FFX.exe", h_printf,  0x473C10);
-        _h_AtelPs2DebugString2 = new FhMethodHandle<PrintfVarargDelegate>(this, "FFX.exe", h_printf,  0x473C20);
+        _h_PhyrePrintf         = new FhMethodHandle<PhyrePrintfDelegate> (this, "FFX.exe", 0x0353F0, h_pprintf);
+        _h_rcPrint             = new FhMethodHandle<PrintfVarargDelegate>(this, "FFX.exe", 0x527550, h_printf);
+        _h_dbgPrintf           = new FhMethodHandle<PrintfVarargDelegate>(this, "FFX.exe", 0x22F6B0, h_printf);
+        _h_scePrintf           = new FhMethodHandle<PrintfVarargDelegate>(this, "FFX.exe", 0x22FDA0, h_printf);
+        _h_AtelPs2DebugString  = new FhMethodHandle<PrintfVarargDelegate>(this, "FFX.exe", 0x473C10, h_printf);
+        _h_AtelPs2DebugString2 = new FhMethodHandle<PrintfVarargDelegate>(this, "FFX.exe", 0x473C20, h_printf);
     }
 
     [UnmanagedCallConv(CallConvs = new Type[] { typeof(System.Runtime.CompilerServices.CallConvCdecl) })]
