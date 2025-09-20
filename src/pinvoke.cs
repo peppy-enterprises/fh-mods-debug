@@ -1,4 +1,6 @@
-﻿using System.Runtime.InteropServices.Marshalling;
+﻿// SPDX-License-Identifier: MIT
+
+using System.Runtime.InteropServices.Marshalling;
 
 namespace Fahrenheit.Mods.Debug;
 

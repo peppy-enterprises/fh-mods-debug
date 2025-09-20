@@ -1,4 +1,6 @@
-﻿namespace Fahrenheit.Mods.Debug;
+﻿// SPDX-License-Identifier: MIT
+
+namespace Fahrenheit.Mods.Debug;
 
 /* [fkelava 17/7/25 02:33]
  * For vararg functions the delegate signature should have an argument count >=
